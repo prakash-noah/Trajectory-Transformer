@@ -78,6 +78,7 @@ def main():
         pass
 
     log=SummaryWriter('logs/Ind_%s'%model_name)
+    log1=SummaryWriter('logs/val_loss_curve')
 
     log.add_scalar('eval/mad', 0, 0)
     log.add_scalar('eval/fad', 0, 0)
@@ -207,8 +208,11 @@ def main():
                                                                                                                 :, -1:,
                                                                                                                 0:2].cpu().numpy()
                 pr.append(preds_tr_b)
-                print("val epoch %03i/%03i  batch %04i / %04i" % (
-                    epoch, args.max_epoch, id_b, len(val_dl)))
+                loss = F.pairwise_distance(out[:, :,0:2].contiguous().view(-1, 2),
+                                            ((batch['trg'][:, :, 2:4].to(device)-mean.to(device))/std.to(device)).contiguous().view(-1, 2).to(device)).mean() + torch.mean(torch.abs(out[:,:,2]))
+                print("val epoch %03i/%03i  batch %04i / %04i loss: %7.4f" % (epoch, args.max_epoch, id_b, len(val_dl), loss.item()))
+                val_loss += loss.item()
+                log1.add_scalar('Loss/train', val_loss / len(val_dl), epoch)
 
 
             peds = np.concatenate(peds, 0)
@@ -255,8 +259,9 @@ def main():
 
                     preds_tr_b=(dec_inp[:,1:,0:2]*std.to(device)+mean.to(device)).cpu().numpy().cumsum(1)+batch['src'][:,-1:,0:2].cpu().numpy()
                     pr.append(preds_tr_b)
-                    print("test epoch %03i/%03i  batch %04i / %04i" % (
-                    epoch, args.max_epoch, id_b, len(test_dl)))
+                    loss = F.pairwise_distance(out[:, :,0:2].contiguous().view(-1, 2),
+                                                ((batch['trg'][:, :, 2:4].to(device)-mean.to(device))/std.to(device)).contiguous().view(-1, 2).to(device)).mean() + torch.mean(torch.abs(out[:,:,2]))
+                    print("test epoch %03i/%03i  batch %04i / %04i loss: %7.4f" % (epoch, args.max_epoch, id_b, len(test_dl), loss.item()))
 
                 peds = np.concatenate(peds, 0)
                 frames = np.concatenate(frames, 0)
