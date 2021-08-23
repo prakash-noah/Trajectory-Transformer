@@ -111,6 +111,9 @@ def main():
                    d_model=args.emb_size, d_ff=2048, h=args.heads, dropout=args.dropout,mean=[0,0],std=[0,0]).to(device)
     if args.resume_train:
         model.load_state_dict(torch.load(f'models/Individual/{args.name}/{args.model_pth}'))
+        epoch = int( args.model_pth.split('.')[0] )
+    else:
+        epoch = 0 
 
     tr_dl = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
     val_dl = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
@@ -121,7 +124,7 @@ def main():
     optim = NoamOpt(args.emb_size, args.factor, len(tr_dl)*args.warmup,
                         torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
     #optim=Adagrad(list(a.parameters())+list(model.parameters())+list(generator.parameters()),lr=0.01,lr_decay=0.001)
-    epoch=0
+    #epoch=0
 
 
     #mean=train_dataset[:]['src'][:,1:,2:4].mean((0,1))
@@ -186,7 +189,7 @@ def main():
             dt = []
 
             for id_b, batch in enumerate(val_dl):
-                inp_.append(batch['src'])
+                inp_.append(batch['src'][:,:,0:2])
                 gt.append(batch['trg'][:, :, 0:2])
                 frames.append(batch['frames'])
                 peds.append(batch['peds'])
@@ -218,6 +221,7 @@ def main():
             peds = np.concatenate(peds, 0)
             frames = np.concatenate(frames, 0)
             dt = np.concatenate(dt, 0)
+            inp_ = np.concatenate(inp_,0)
             gt = np.concatenate(gt, 0)
             dt_names = test_dataset.data['dataset_name']
             pr = np.concatenate(pr, 0)
@@ -239,7 +243,7 @@ def main():
                 dt = []
                 
                 for id_b,batch in enumerate(test_dl):
-                    inp_.append(batch['src'])
+                    inp_.append(batch['src'][:,:,0:2])
                     gt.append(batch['trg'][:,:,0:2])
                     frames.append(batch['frames'])
                     peds.append(batch['peds'])
@@ -266,6 +270,7 @@ def main():
                 peds = np.concatenate(peds, 0)
                 frames = np.concatenate(frames, 0)
                 dt = np.concatenate(dt, 0)
+                inp_ = np.concatenate(inp_,0)
                 gt = np.concatenate(gt, 0)
                 dt_names = test_dataset.data['dataset_name']
                 pr = np.concatenate(pr, 0)
@@ -280,7 +285,7 @@ def main():
                 # log.add_scalar('eval/DET_fad', fad, epoch)
 
                 scipy.io.savemat(f"output/Individual/{args.name}/det_{epoch}.mat",
-                                 {'input': inp, 'gt': gt, 'pr': pr, 'peds': peds, 'frames': frames, 'dt': dt,
+                                 {'input': inp_, 'gt': gt, 'pr': pr, 'peds': peds, 'frames': frames, 'dt': dt,
                                   'dt_names': dt_names})
 
         if epoch%args.save_step==0:
